@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Tours - TourVista</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">TourVista</a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="tours.html">Tours</a></li>
+                <li><a href="#" id="authLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Tours Section -->
+    <section class="container">
+        <div class="section-title">
+            <h2>Explore All Tours</h2>
+            <p>Find your perfect adventure from our extensive collection</p>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input"
+                placeholder="Search by location, category, or title...">
+            <button class="search-btn" onclick="searchTours()">🔍 Search</button>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="category-filters">
+            <button class="filter-btn active" onclick="filterByCategory('all')">All Tours</button>
+            <button class="filter-btn" onclick="filterByCategory('Beach')">🏖️ Beach</button>
+            <button class="filter-btn" onclick="filterByCategory('Mountain')">⛰️ Mountain</button>
+            <button class="filter-btn" onclick="filterByCategory('Cultural')">🏛️ Cultural</button>
+            <button class="filter-btn" onclick="filterByCategory('Adventure')">🎿 Adventure</button>
+            <button class="filter-btn" onclick="filterByCategory('City')">🏙️ City</button>
+            <button class="filter-btn" onclick="filterByCategory('Wildlife')">🦁 Wildlife</button>
+        </div>
+
+        <!-- Tours Grid -->
+        <div class="card-grid" id="toursGrid">
+            <div class="spinner"></div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2026 TourVista. All rights reserved.</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllTours();
+            updateNavigation();
+        });
+
+        async function loadAllTours() {
+            try {
+                const response = await fetch('http://localhost:5000/api/tours');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTours(data.data);
+                }
+            } catch (error) {
+                document.getElementById('toursGrid').innerHTML =
+                    '<p class="text-center">Unable to load tours. Please ensure the server is running.</p>';
+            }
+        }
+
+        function displayTours(tours) {
+            const grid = document.getElementById('toursGrid');
+
+            if (tours.length === 0) {
+                grid.innerHTML = '<p class="text-center">No tours found.</p>';
+                return;
+            }
+
+            grid.innerHTML = tours.map(tour => `
+        <div class="card fade-in">
+          <img src="${tour.image || 'https://via.placeholder.com/400x200?text=' + encodeURIComponent(tour.title)}" 
+               alt="${tour.title}" class="card-image">
+          <div class="card-content">
+            <h3 class="card-title">${tour.title}</h3>
+            <p class="card-location">${tour.location}</p>
+            <p class="card-description">${tour.description}</p>
+            <div style="margin: 1rem 0;">
+              <span style="background: rgba(78, 205, 196, 0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; color: var(--secondary);">
+                ${tour.category}
+              </span>
+              <span style="margin-left: 0.5rem; color: rgba(255, 255, 255, 0.7);">
+                ⏱️ ${tour.duration}
+              </span>
+            </div>
+            <div class="card-footer">
+              <span class="card-price">$${tour.price}</span>
+              <span class="card-rating">⭐ ${tour.rating}</span>
+            </div>
+            <a href="booking.html?id=${tour._id}" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Book Now</a>
+          </div>
+        </div>
+      `).join('');
+        }
+
+        async function searchTours() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                loadAllTours();
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/tours/search/${query}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTours(data.data);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }
+
+        document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchTours();
+        });
+
+        // Category filter functionality
+        let allToursData = [];
+
+        async function loadAllTours() {
+            try {
+                const response = await fetch('http://localhost:5000/api/tours');
+                const data = await response.json();
+
+                if (data.success) {
+                    allToursData = data.data; // Store all tours
+                    displayTours(data.data);
+                }
+            } catch (error) {
+                document.getElementById('toursGrid').innerHTML =
+                    '<p class="text-center">Unable to load tours. Please ensure the server is running.</p>';
+            }
+        }
+
+        function filterByCategory(category) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Filter tours
+            if (category === 'all') {
+                displayTours(allToursData);
+            } else {
+                const filtered = allToursData.filter(tour => tour.category === category);
+                displayTours(filtered);
+            }
+        }
+    </script>
+</body>
+
+</html>

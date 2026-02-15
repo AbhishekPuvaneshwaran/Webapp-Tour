@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Tour - TourVista</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">TourVista</a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="tours.html">Tours</a></li>
+                <li><a href="#" id="authLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Booking Section -->
+    <div class="container">
+        <div id="tourDetails" class="spinner"></div>
+
+        <div class="form-container" id="bookingFormContainer" style="display: none;">
+            <h2 class="form-title">Complete Your Booking</h2>
+            <div id="alertMessage"></div>
+
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label for="date">Travel Date</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="numberOfPeople">Number of People</label>
+                    <input type="number" id="numberOfPeople" name="numberOfPeople" min="1" max="10" value="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Total Price</label>
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--accent);" id="totalPrice">$0</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary form-submit">Confirm Booking & Pay</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script>
+        let currentTour = null;
+        let tourPrice = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateNavigation();
+            checkAuthentication();
+            loadTourDetails();
+        });
+
+        function checkAuthentication() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showAlert('Please login to book a tour', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+            }
+        }
+
+        async function loadTourDetails() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tourId = urlParams.get('id');
+
+            if (!tourId) {
+                const tourDetailsParams = document.getElementById('tourDetails');
+                tourDetailsParams.classList.remove('spinner');
+                tourDetailsParams.innerHTML = '<p class="text-center">No tour selected</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/tours/${tourId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentTour = data.data;
+                    tourPrice = data.data.price;
+                    document.getElementById('tourDetails').classList.remove('spinner'); // Stop spinning
+                    displayTourDetails(data.data);
+                    document.getElementById('bookingFormContainer').style.display = 'block';
+                    updateTotalPrice();
+                } else {
+                    const tourDetailsFail = document.getElementById('tourDetails');
+                    tourDetailsFail.classList.remove('spinner');
+                    tourDetailsFail.innerHTML = '<p class="text-center">Tour not found</p>';
+                }
+            } catch (error) {
+                const tourDetailsError = document.getElementById('tourDetails');
+                tourDetailsError.classList.remove('spinner');
+                tourDetailsError.innerHTML = '<p class="text-center">Unable to load tour details</p>';
+            }
+        }
+
+        function displayTourDetails(tour) {
+            document.getElementById('tourDetails').innerHTML = `
+        <div style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.2);">
+          <h2 style="font-size: 2.5rem; margin-bottom: 1rem; color: var(--white);">${tour.title}</h2>
+          <p style="color: var(--secondary); font-size: 1.2rem; margin-bottom: 1rem;">📍 ${tour.location}</p>
+          <p style="color: rgba(255, 255, 255, 0.8); margin-bottom: 1rem; line-height: 1.8;">${tour.description}</p>
+          <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1.5rem;">
+            <div>
+              <strong style="color: var(--accent);">Price:</strong> 
+              <span style="font-size: 1.5rem; color: var(--white);">$${tour.price}</span>
+            </div>
+            <div>
+              <strong style="color: var(--accent);">Duration:</strong> 
+              <span style="color: var(--white);">${tour.duration}</span>
+            </div>
+            <div>
+              <strong style="color: var(--accent);">Category:</strong> 
+              <span style="color: var(--white);">${tour.category}</span>
+            </div>
+            <div>
+              <strong style="color: var(--accent);">Rating:</strong> 
+              <span style="color: var(--white);">⭐ ${tour.rating}</span>
+            </div>
+          </div>
+        </div>
+      `;
+        }
+
+        function updateTotalPrice() {
+            const numberOfPeople = document.getElementById('numberOfPeople').value || 1;
+            const total = tourPrice * numberOfPeople;
+            document.getElementById('totalPrice').textContent = `$${total}`;
+        }
+
+        document.getElementById('numberOfPeople')?.addEventListener('input', updateTotalPrice);
+
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').setAttribute('min', today);
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const token = localStorage.getItem('token');
+            const date = document.getElementById('date').value;
+            const numberOfPeople = document.getElementById('numberOfPeople').value;
+
+            try {
+                const response = await fetch('http://localhost:5000/api/bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        tourId: currentTour._id,
+                        date,
+                        numberOfPeople: parseInt(numberOfPeople)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showAlert('Booking confirmed! Payment successful. Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'tours.html';
+                    }, 2000);
+                } else {
+                    showAlert(data.message || 'Booking failed', 'error');
+                }
+            } catch (error) {
+                showAlert('Unable to process booking', 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alertMessage');
+            alertDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertDiv.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+
+</html>
